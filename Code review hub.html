@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Code Review Tool</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        pre {
+            border-radius: 8px;
+            position: relative;
+        }
+
+        pre .line-numbers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 30px;
+            text-align: right;
+            padding: 1em 0.5em;
+            background: rgba(0, 0, 0, 0.1);
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8em;
+            user-select: none;
+        }
+
+        .dark pre .line-numbers {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .annotation-marker {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: rgb(16, 185, 129);
+            border-radius: 50%;
+            margin-right: 6px;
+            position: relative;
+            top: -1px;
+        }
+
+        .dark .annotation-marker {
+            opacity: 0.9;
+        }
+
+        @keyframes pulse-bg {
+
+            0%,
+            100% {
+                background-color: rgba(16, 185, 129, 0.2);
+            }
+
+            50% {
+                background-color: rgba(16, 185, 129, 0.4);
+            }
+        }
+
+        .pulse-highlight {
+            animation: pulse-bg 2s infinite;
+            border-radius: 4px;
+        }
+
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: max-content;
+            max-width: 250px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px 12px;
+            position: absolute;
+            z-index: 100;
+            top: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            font-weight: 400;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: transparent transparent rgba(0, 0, 0, 0.8) transparent;
+        }
+
+        .avatar {
+            background-color: #10b981;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes highlight-comment {
+            0% {
+                background-color: rgba(16, 185, 129, 0.2);
+            }
+
+            100% {
+                background-color: transparent;
+            }
+        }
+
+        .highlight-new {
+            animation: highlight-comment 2s ease-out forwards;
+        }
+
+        .chart-container {
+            position: relative;
+            min-height: 400px;
+            width: 100%;
+        }
+
+        @media (max-width: 640px) {
+            .chart-container {
+                height: 250px;
+            }
+        }
+
+        .code-content {
+            margin-left: 2rem;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body class="dark bg-dark-900 text-dark-100 min-h-screen flex flex-col antialiased">
+    <header class="dark:bg-dark-800  bg-white border-dark-700 sticky top-0 z-50 shadow-md">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-1 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg shadow-md">
+                    <svg class="w-7 h-7 dark:text-white text-black" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                </div>
+                <h1 class="text-xl font-bold tracking-tight">Code Review<span class="text-primary-400"> Tool</span></h1>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <!-- Notification Bell -->
+                <div class="relative tooltip-container">
+                    <button
+                        class="p-2 rounded-full hover:bg-primary-600 dark:hover:bg-primary-900 transition duration-200">
+                        <svg class="w-5 h-5 dark:text-dark-300 text-dark-700" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        <span class="absolute top-0 right-0 block w-2 h-2 bg-primary-500 rounded-full"></span>
+                    </button>
+                    <span class="tooltip-text">2 new notifications</span>
+                </div>
+
+                <div class="tooltip-container">
+                    <button id="theme-toggle"
+                        class="p-2 rounded-full hover:bg-primary-600 dark:hover:bg-primary-900 transition duration-200">
+                        <svg id="theme-icon" class="w-5 h-5 dark:text-dark-300 text-dark-700" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path id="theme-path" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </button>
+                    <span class="tooltip-text">Toggle dark/light mode</span>
+                </div>
+               
+                <div class="tooltip-container">
+                    <button id="help-btn"
+                        class="p-2 rounded-full hover:bg-primary-600 dark:hover:bg-primary-900 transition duration-200">
+                        <svg class="w-5 h-5 dark:text-dark-300 text-dark-700" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
+                    <span class="tooltip-text">Help & instructions</span>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="avatar w-8 h-8 rounded-full flex items-center justify-center text-sm">JD</div>
+                    <span class="hidden sm:inline-block font-medium">John Doe</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <div class="lg:col-span-1 space-y-6">
+            <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold dark:text-white text-black flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            Pull Requests
+                        </h2>
+                        <button id="add-btn"
+                            class="flex items-center space-x-1.5 py-1.5 px-3 text-sm font-medium bg-primary-600 hover:bg-primary-700 dark:text-white text-black rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>New</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5 space-y-4">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-4 h-4 text-dark-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input id="pr-search" type="text"
+                            class="block w-full pl-10 pr-4 py-2.5 dark:bg-dark-700 bg-dark-200 border border-dark-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition"
+                            placeholder="Search pull requests..." />
+                    </div>
+                    <div id="pr-list-items" class="space-y-2 max-h-[400px] overflow-y-auto pr-1"></div>
+                </div>
+            </div>
+            <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-dark-700">
+                    <h2 class="text-lg font-semibold dark:text-white text-black flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Current Review
+                    </h2>
+                </div>
+
+                <div class="p-4 sm:p-5 space-y-4">
+                    <div>
+                        <h3 id="pr-title" class="text-lg font-medium dark:text-white text-black">Select a Pull Request
+                        </h3>
+                        <div class="flex items-center mt-2 space-x-2">
+                            <span id="pr-status"
+                                class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-dark-700 text-dark-300">
+                                Status: N/A
+                            </span>
+                            <span id="pr-reviewer-badge"
+                                class="hidden inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-dark-700 text-dark-300">
+                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span id="pr-reviewer">No reviewer</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2">
+                        <button id="approve-btn" disabled
+                            class="flex-1 flex items-center justify-center space-x-1 py-2 px-4 bg-primary-600 hover:bg-primary-700 dark:disabled:bg-dark-700 disabled:bg-dark-400 disabled:text-dark-500 disabled:cursor-not-allowed dark:text-white text-black rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M5 13l4 4L19 7" />
+                            </svg>
+                            <span>Approve</span>
+                        </button>
+                        <button id="disapprove-btn" disabled
+                            class="flex-1 flex items-center justify-center space-x-1 py-2 px-4 bg-danger-600 hover:bg-danger-700 dark:disabled:bg-dark-700 disabled:bg-dark-400 disabled:text-dark-500 disabled:cursor-not-allowed dark:text-white text-black rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-danger-500 focus:ring-opacity-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <span>Reject</span>
+                        </button>
+                        <button id="sync-btn"
+                            class="flex-1 flex items-center justify-center space-x-1 py-2 px-4 bg-secondary-600 hover:bg-secondary-700 dark:text-white text-black rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-secondary-500 focus:ring-opacity-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Sync</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+   </div>
+
+        <div class="lg:col-span-2 space-y-6">
+            <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold dark:text-white text-black flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                            Code Snippet
+                        </h2>
+                        <div class="bg-dark-700 rounded-lg overflow-hidden flex">
+                            <button id="js-language"
+                                class="px-3 py-1.5 text-xs font-medium bg-primary-600 dark:text-white text-black">JavaScript</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5 space-y-4 overflow-x-auto">
+                    <div class="code-container rounded-lg overflow-hidden bg-[#1e1e1e] shadow-md">
+                        <pre
+                            class="language-javascript text-sm"><code id="code-snippet" class="language-javascript">// Select a pull request to view code</code></pre>
+                    </div>
+                    <div id="annotations" class="space-y-2"></div>
+                    <div class="flex gap-2">
+                        <div class="relative flex-grow">
+                            <textarea id="annotation-text" rows="2"
+                                class="block w-full pr-12 py-2.5 px-3 dark:bg-dark-700 bg-dark-100 border border-dark-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition resize-none"
+                                placeholder="Add annotation..."></textarea>
+                            <div class="absolute right-2 bottom-2 flex items-center space-x-1 text-dark-400 text-xs">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                </svg>
+                                <span>Add review note</span>
+                            </div>
+                        </div>
+                        <button id="add-annotation"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:text-white text-black rounded-lg flex items-center transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span class="ml-1">Add</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-dark-700">
+                    <h2 class="text-lg font-semibold dark:text-white text-black flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                        </svg>
+                        Discussion Thread
+                    </h2>
+                </div>
+
+                <div class="p-4 sm:p-5 space-y-4">
+                    <div id="comment-thread" class="space-y-4 max-h-[400px] overflow-y-auto pr-1"></div>
+                    <div class="relative">
+                        <textarea id="comment-text" rows="3"
+                            class="block w-full pr-12 py-2.5 px-3 dark:bg-dark-700 bg-dark-100 border border-dark-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition resize-none"
+                            placeholder="Add your comment..."></textarea>
+                        <div class="absolute right-3 bottom-3 flex items-center space-x-2">
+                            <div class="text-dark-400 text-xs tooltip-container">
+                                <span>Ctrl+Enter to submit</span>
+                                <svg class="w-4 h-4 inline-block ml-1" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip-text">Press Ctrl+Enter to submit your comment</span>
+                            </div>
+                        </div>
+                        <button id="add-comment"
+                            class="mt-3 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 dark:text-white text-black rounded-lg inline-flex items-center transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50">
+                            <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            Add Comment
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom overflow-hidden">
+                <div class="p-4 sm:p-5 border-b border-dark-700">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-semibold dark:text-white text-black flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Analytics
+                        </h2>
+                        <select id="chart-view"
+                            class="dark:bg-dark-700 bg-dark-100 border border-dark-600 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2 pr-8 appearance-none">
+                            <option value="reviewer">By Reviewer</option>
+                            <option value="status">By Status</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-4 sm:p-5">
+                    <div class="chart-container rounded-lg overflow-hidden">
+                        <div id="review-chart" class="w-full h-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <div id="toast-container" class="fixed bottom-5 left-5 z-50 flex flex-col items-end space-y-2"></div>
+
+    <div id="instructions-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom-lg max-w-xl w-full max-h-[90vh] overflow-y-auto"
+            role="dialog" aria-labelledby="instructions-title">
+            <div class="p-6">
+                <div class="flex items-center justify-between border-b border-dark-700 pb-4 mb-4">
+                    <h2 id="instructions-title" class="text-xl font-bold dark:text-white text-black flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        How to Use Code Review Tool
+                    </h2>
+                    <button id="close-instructions"
+                        class="text-dark-400 hover:dark:text-white text-black p-1 rounded-full hover:bg-dark-700 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="space-y-4 dark:dark:text-dark-200 text-dark-700 text-dark-700">
+                    <div class="bg-dark-700 rounded-lg p-4 border-l-4 border-primary-500">
+                        <p class="text-sm text-white">This tool helps you streamline the code review process and improve
+                            team collaboration.</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <h3 class="text-lg font-semibold dark:text-white text-black">Getting Started</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 h-5 w-5 text-primary-500 mt-0.5">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="ml-2 text-sm">Select a pull request from the sidebar menu</p>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 h-5 w-5 text-primary-500 mt-0.5">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="ml-2 text-sm">Review code snippets in the main panel</p>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 h-5 w-5 text-primary-500 mt-0.5">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="ml-2 text-sm">Add annotations to highlight specific issues</p>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 h-5 w-5 text-primary-500 mt-0.5">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="ml-2 text-sm">Participate in discussion threads (use Ctrl+Enter to post)</p>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 h-5 w-5 text-primary-500 mt-0.5">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="ml-2 text-sm">Approve or reject pull requests when ready</p>
+                            </div>
+                            <div class="flex items-start">
+                                <div class="flex-shrink-0 h-5 w-5 text-primary-500 mt-0.5">
+                                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <p class="ml-2 text-sm">Track review analytics in the chart section</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h3 class="text-lg font-semibold dark:text-white text-black">Keyboard Shortcuts</h3>
+                        <div class="bg-dark-900 rounded-lg p-3 space-y-2 font-mono text-sm">
+                            <div class="flex justify-between">
+                                <span>Ctrl + Enter</span>
+                                <span class="text-primary-400">Submit comment</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Alt + A</span>
+                                <span class="text-primary-400">Add annotation</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Alt + S</span>
+                                <span class="text-primary-400">Sync changes</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button id="close-help-btn"
+                        class="px-4 py-2 bg-primary-600 hover:bg-primary-700 dark:text-white text-black rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50">
+                        Got it!
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="add-pr-modal"
+        class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="dark:bg-dark-800  bg-white rounded-xl border border-dark-700 shadow-custom-lg max-w-lg w-full max-h-[90vh] overflow-y-auto"
+            role="dialog" aria-labelledby="add-pr-title">
+            <div class="p-6">
+                <div class="flex items-center justify-between border-b border-dark-700 pb-4 mb-4">
+                    <h2 id="add-pr-title" class="text-xl font-bold dark:text-white text-black flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-primary-500" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        New Pull Request
+                    </h2>
+                    <button id="close-pr-modal"
+                        class="text-dark-400 hover:dark:text-white text-black p-1 rounded-full hover:bg-dark-700 transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <form id="add-pr-form" class="space-y-4">
+                    <div class="space-y-2">
+                        <label for="pr-title-input"
+                            class="block text-sm font-medium dark:text-dark-200 text-dark-700">Title</label>
+                        <input type="text" id="pr-title-input" required
+                            class="block w-full py-2.5 px-3 dark:bg-dark-700 bg-dark-100 border border-dark-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition"
+                            placeholder="Enter pull request title" />
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="pr-code-input"
+                            class="block text-sm font-medium dark:text-dark-200 text-dark-700">Code Snippet</label>
+                        <textarea id="pr-code-input" required rows="6"
+                            class="block w-full py-2.5 px-3 dark:bg-dark-700 bg-dark-100 border border-dark-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition font-mono"
+                            placeholder="Enter code snippet"></textarea>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label for="pr-reviewer-input"
+                            class="block text-sm font-medium dark:text-dark-200 text-dark-700">Reviewer</label>
+                        <input type="text" id="pr-reviewer-input" required
+                            class="block w-full py-2.5 px-3 dark:bg-dark-700 bg-dark-100 border border-dark-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition"
+                            placeholder="Enter reviewer name" />
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit"
+                            class="w-full py-2.5 bg-primary-600 hover:bg-primary-700 dark:text-white text-black rounded-lg transition transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50 flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Create Pull Request
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            100: '#d1fae5',
+                            300: '#6ee7b7',
+                            400: '#34d399',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857',
+                            900: '#064e3b',
+                        },
+                        secondary: {
+                            100: '#dbeafe',
+                            300: '#93c5fd',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        danger: {
+                            100: '#fee2e2',
+                            300: '#fca5a5',
+                            600: '#dc2626',
+                            700: '#b91c1c',
+                            800: '#991b1b',
+                            900: '#7f1d1d',
+                        },
+                        dark: {
+                            100: '#f3f4f6',
+                            200: '#e5e7eb',
+                            300: '#d1d5db',
+                            400: '#9ca3af',
+                            500: '#6b7280',
+                            600: '#4b5563',
+                            700: '#374151',
+                            800: '#1f2937',
+                            900: '#111827',
+                        },
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    },
+                    boxShadow: {
+                        'custom': '0 4px 20px rgba(0, 0, 0, 0.08)',
+                        'custom-lg': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    },
+                    keyframes: {
+                        pulse: {
+                            '0%, 100%': { opacity: 1 },
+                            '50%': { opacity: 0.7 },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: 0, transform: 'translateY(-10px)' },
+                            '100%': { opacity: 1, transform: 'translateY(0)' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' },
+                        }
+                    },
+                    animation: {
+                        pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        fadeIn: 'fadeIn 0.3s ease-out',
+                        shimmer: 'shimmer 2s linear infinite',
+                    },
+                    transitionProperty: {
+                        'height': 'height',
+                    }
+                },
+            },
+        }
+    
+        document.addEventListener('DOMContentLoaded', () => {
+            const pullRequests = [
+                {
+                    id: 1,
+                    title: "Add user authentication",
+                    code: "/**\n * User authentication function\n * @param {string} user - Username\n * @param {string} pass - Password\n * @returns {boolean} Authentication result\n */\nfunction login(user, pass) {\n  // Validate inputs exist\n  if (!user || !pass) return false;\n  \n  // Call authentication service\n  return validateCredentials(user, pass);\n}",
+                    status: "Open",
+                    reviewer: "Alice Chen",
+                    annotations: [{ text: "Should add error handling", line: 9 }],
+                    comments: [
+                        {
+                            id: 1,
+                            text: "This looks good overall, but we need to add more error handling",
+                            author: "Bob Smith",
+                            timestamp: "2025-04-20T14:22:00Z",
+                            avatar: "BS"
+                        },
+                        {
+                            id: 2,
+                            text: "I agree. Let's also add logging for failed attempts.",
+                            author: "Alice Chen",
+                            timestamp: "2025-04-20T15:45:00Z",
+                            avatar: "AC"
+                        }
+                    ],
+                },
+                {
+                    id: 2,
+                    title: "Fix payment processing bug",
+                    code: "/**\n * Process a payment through the payment gateway\n * @param {number} amount - Payment amount\n * @returns {string} Transaction status\n */\nasync function processPayment(amount) {\n  try {\n    // Call payment gateway API\n    const result = await paymentGateway.charge(amount);\n    return result.status;\n  } catch (error) {\n    console.error('Payment failed:', error);\n    return 'failed';\n  }\n}",
+                    status: "Approved",
+                    reviewer: "Charlie Wong",
+                    annotations: [
+                        { text: "Consider adding retry logic", line: 8 }
+                    ],
+                    comments: [
+                        {
+                            id: 1,
+                            text: "Tested and works. The error handling is much better now.",
+                            author: "Alice Chen",
+                            timestamp: "2025-04-19T10:15:00Z",
+                            avatar: "AC"
+                        },
+                        {
+                            id: 2,
+                            text: "Approved! Let's ship this.",
+                            author: "Charlie Wong",
+                            timestamp: "2025-04-19T11:30:00Z",
+                            avatar: "CW"
+                        }
+                    ],
+                },
+                {
+                    id: 3,
+                    title: "Implement dark mode toggle",
+                    code: "/**\n * Toggle between light and dark mode\n */\nfunction toggleTheme() {\n  const theme = localStorage.getItem('theme') || 'light';\n  const newTheme = theme === 'light' ? 'dark' : 'light';\n  \n  // Update localStorage\n  localStorage.setItem('theme', newTheme);\n  \n  // Apply theme class to document\n  document.documentElement.classList.toggle('dark');\n  \n  // Update theme icons\n  updateThemeIcons(newTheme);\n}",
+                    status: "Disapproved",
+                    reviewer: "Diana Evans",
+                    annotations: [
+                        { text: "Should use system preference as default", line: 5 },
+                        { text: "This function is missing proper JSDoc", line: 12 }
+                    ],
+                    comments: [
+                        {
+                            id: 1,
+                            text: "Let's respect the user's system preference when available.",
+                            author: "Diana Evans",
+                            timestamp: "2025-04-21T09:20:00Z",
+                            avatar: "DE"
+                        },
+                        {
+                            id: 2,
+                            text: "Also, what about updating UI components that use theme values?",
+                            author: "Bob Smith",
+                            timestamp: "2025-04-21T10:05:00Z",
+                            avatar: "BS"
+                        },
+                        {
+                            id: 3,
+                            text: "Good point, I'll update this. Should we create a ThemeProvider instead?",
+                            author: "John Doe",
+                            timestamp: "2025-04-21T11:15:00Z",
+                            avatar: "JD"
+                        }
+                    ],
+                }
+            ];
+
+            let selectedPR = null;
+            let isDarkTheme = true;
+
+            // Utility functions
+            function debounce(func, wait) {
+                let timeout;
+                return function (...args) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), wait);
+                };
+            }
+
+            function formatDate(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+                if (diffMins < 60) {
+                    return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+                } else if (diffHours < 24) {
+                    return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+                } else if (diffDays < 7) {
+                    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+                } else {
+                    return date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+                    });
+                }
+            }
+
+            function showToast(message, type = 'info') {
+                const toastContainer = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+
+                const baseClasses = 'px-4 py-3 rounded-lg shadow-lg dark:text-white text-black flex items-center animate-fadeIn transition transform hover:scale-105';
+                let typeClasses = '';
+                let icon = '';
+
+                switch (type) {
+                    case 'success':
+                        typeClasses = 'bg-primary-600';
+                        icon = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+                        break;
+                    case 'error':
+                        typeClasses = 'bg-danger-600';
+                        icon = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                        break;
+                    default:
+                        typeClasses = 'bg-secondary-600';
+                        icon = '<svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                }
+
+                toast.className = `${baseClasses} ${typeClasses}`;
+                toast.innerHTML = `${icon}<span>${message}</span>`;
+                toastContainer.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.classList.add('opacity-0');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 4000);
+            }
+            // Render functions
+            function renderPRList(filter = '') {
+                const prListItems = document.getElementById('pr-list-items');
+                prListItems.innerHTML = '';
+
+                const filteredPRs = pullRequests.filter(pr =>
+                    pr.title.toLowerCase().includes(filter.toLowerCase()) ||
+                    pr.reviewer.toLowerCase().includes(filter.toLowerCase())
+                );
+
+                if (filteredPRs.length === 0) {
+                    prListItems.innerHTML = `
+                        <div class="py-6 flex flex-col items-center justify-center text-dark-400">
+                            <svg class="w-8 h-8 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            <p>No pull requests found</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                filteredPRs.forEach(pr => {
+                    const statusClasses = {
+                        'Open': 'bg-secondary-100 text-secondary-800 dark:bg-secondary-900/50 dark:text-secondary-300',
+                        'Approved': 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-300',
+                        'Disapproved': 'bg-danger-100 text-danger-800 dark:bg-danger-900/50 dark:text-danger-300'
+                    };
+
+                    const statusClass = statusClasses[pr.status] || 'bg-dark-700 text-dark-300';
+
+                    const prItem = document.createElement('div');
+                    prItem.className = `px-4 py-3 dark:bg-dark-700 bg-dark-100 dark:hover:bg-dark-600 hover:bg-dark-300 ${selectedPR?.id === pr.id ? 'border-l-4 border-primary-500 dark:bg-dark-600 bg-dark-300' : ''} rounded-lg cursor-pointer transition duration-200`;
+                    prItem.dataset.id = pr.id;
+
+                    prItem.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-medium dark:text-white text-black">${pr.title}</h3>
+                                <span class="text-sm dark:text-dark-400 text-dark-600 mt-1 block">Reviewer: ${pr.reviewer}</span>
+                            </div>
+                            <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
+                                ${pr.status}
+                            </span>
+                        </div>
+                    `;
+
+                    prItem.addEventListener('click', () => selectPR(pr.id));
+                    prListItems.appendChild(prItem);
+                });
+            }
+            function selectPR(id) {
+                // Find the selected PR
+                selectedPR = pullRequests.find(pr => pr.id == id);
+                if (!selectedPR) return;
+
+                // Remove highlight from previously selected PR
+                const previouslySelected = document.querySelector('.border-l-4.border-primary-500');
+                if (previouslySelected) {
+                    previouslySelected.classList.remove('border-l-4', 'border-primary-500', 'bg-dark-600');
+                }
+
+                // Re-render the PR list to update the highlighted item
+                renderPRList();
+
+                // Update PR details
+                const prTitle = document.getElementById('pr-title');
+                const prStatus = document.getElementById('pr-status');
+                const prReviewerBadge = document.getElementById('pr-reviewer-badge');
+                const prReviewer = document.getElementById('pr-reviewer');
+                const approveBtn = document.getElementById('approve-btn');
+                const disapproveBtn = document.getElementById('disapprove-btn');
+
+                prTitle.textContent = selectedPR.title;
+
+                // Update status with appropriate styling
+                const statusClasses = {
+                    'Open': 'bg-secondary-100 text-secondary-800 dark:bg-secondary-900/50 dark:text-secondary-300',
+                    'Approved': 'bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-300',
+                    'Disapproved': 'bg-danger-100 text-danger-800 dark:bg-danger-900/50 dark:text-danger-300'
+                };
+                prStatus.className = `inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${statusClasses[selectedPR.status] || 'dark:bg-dark-700 bg-dark-100 text-dark-300'}`;
+                prStatus.textContent = `Status: ${selectedPR.status}`;
+
+                // Update reviewer
+                prReviewer.textContent = selectedPR.reviewer;
+                prReviewerBadge.classList.remove('hidden');
+
+                // Update button states
+                approveBtn.disabled = selectedPR.status !== 'Open';
+                disapproveBtn.disabled = selectedPR.status !== 'Open';
+
+                // Update code snippet
+                const codeSnippet = document.getElementById('code-snippet');
+                codeSnippet.textContent = selectedPR.code || '// No code available';
+                Prism.highlightAll(); // Reapply syntax highlighting
+                addLineNumbersToCode(); // Regenerate line numbers
+
+                // Render annotations and comments
+                renderAnnotations();
+                renderComments();
+
+                // Update chart
+                updateChart();
+            }
+            function addLineNumbersToCode() {
+                const codeElement = document.getElementById('code-snippet');
+                if (!codeElement) return;
+
+                const code = codeElement.textContent;
+                const lines = code.split('\n');
+                const lineCount = lines.length;
+
+                // Create line numbers
+                const preElement = codeElement.parentElement;
+                let lineNumbers = preElement.querySelector('.line-numbers');
+
+                if (!lineNumbers) {
+                    lineNumbers = document.createElement('div');
+                    lineNumbers.className = 'line-numbers';
+                    preElement.appendChild(lineNumbers);
+
+                    // Wrap code in container
+                    const codeContainer = document.createElement('div');
+                    codeContainer.className = 'code-content';
+                    preElement.appendChild(codeContainer);
+
+                    // Move code element into container
+                    codeContainer.appendChild(codeElement);
+                }
+
+                lineNumbers.innerHTML = Array.from({ length: lineCount }, (_, i) => `<div>${i + 1}</div>`).join('');
+            }
+
+            function renderAnnotations() {
+                const annotations = document.getElementById('annotations');
+                annotations.innerHTML = '';
+
+                selectedPR.annotations.forEach((ann, i) => {
+                    const annotation = document.createElement('div');
+                    annotation.className = 'dark:bg-dark-700 bg-dark-100 rounded-lg p-3 flex items-start space-x-2 group hover:bg-dark-600 transition duration-200';
+                    annotation.dataset.line = ann.line;
+
+                    annotation.innerHTML = `
+                        <div class="flex-shrink-0 w-5 h-5 text-primary-500 mt-0.5">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                            </svg>
+                        </div>
+                        <div class="flex-grow">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center text-xs text-dark-400">
+                                    <span class="annotation-marker"></span>
+                                    <span>Line ${ann.line}</span>
+                                </div>
+                                <button class="text-dark-400 hover:dark:text-dark-200 text-dark-700 p-1 rounded hover:bg-dark-700 opacity-0 group-hover:opacity-100 transition duration-200 delete-annotation" data-index="${i}">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <p class="mt-1 text-sm">${ann.text}</p>
+                        </div>
+                    `;
+
+                    // Handle click to highlight code line
+                    annotation.addEventListener('click', () => {
+                        // Find the line element and apply highlight
+                        highlightCodeLine(ann.line);
+                    });
+
+                    // Handle delete button
+                    annotation.querySelector('.delete-annotation').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectedPR.annotations.splice(i, 1);
+                        renderAnnotations();
+                        showToast('Annotation removed', 'info');
+                    });
+
+                    annotations.appendChild(annotation);
+                });
+
+                if (selectedPR.annotations.length === 0) {
+                    annotations.innerHTML = `
+                        <div class="text-center py-4 text-dark-400 text-sm">
+                            <svg class="w-6 h-6 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                            </svg>
+                            <p>No annotations yet. Add one below.</p>
+                        </div>
+                    `;
+                }
+            }
+
+            function highlightCodeLine(lineNumber) {
+                // Remove any existing highlights
+                const highlightedLines = document.querySelectorAll('.pulse-highlight');
+                highlightedLines.forEach(line => line.classList.remove('pulse-highlight'));
+
+                // Get the line elements
+                const lineElements = document.querySelectorAll('.code-content .token-line');
+
+                if (lineElements && lineElements.length >= lineNumber) {
+                    const lineElement = lineElements[lineNumber - 1];
+                    if (lineElement) {
+                        lineElement.classList.add('pulse-highlight');
+
+                        // Scroll the line into view
+                        lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+            }
+
+            function renderComments() {
+                const thread = document.getElementById('comment-thread');
+                thread.innerHTML = '';
+
+                if (selectedPR.comments.length === 0) {
+                    thread.innerHTML = `
+                        <div class="text-center py-8 text-dark-400 text-sm">
+                            <svg class="w-10 h-10 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            <p>No comments yet. Start the discussion!</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                selectedPR.comments.forEach(c => {
+                    const comment = document.createElement('div');
+                    comment.className = 'dark:bg-dark-700 bg-dark-100 rounded-lg overflow-hidden';
+
+                    const initials = c.avatar || c.author.split(' ').map(n => n[0]).join('').toUpperCase();
+                    const date = formatDate(c.timestamp);
+
+                    comment.innerHTML = `
+                        <div class="p-4">
+                            <div class="flex">
+                                <div class="avatar w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3">
+                                    ${initials}
+                                </div>
+                                <div class="flex-grow">
+                                    <div class="flex items-baseline justify-between">
+                                        <h4 class="font-medium dark:text-white text-black">${c.author}</h4>
+                                        <span class="text-xs text-dark-400">${date}</span>
+                                    </div>
+                                    <div class="mt-1.5 text-sm">${c.text}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="dark:bg-dark-800/50  bg-white px-4 py-2 flex justify-end">
+                            <button class="text-xs text-dark-400 hover:text-primary-400 flex items-center space-x-1 transition">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                </svg>
+                                <span>Reply</span>
+                            </button>
+                        </div>
+                    `;
+
+                    thread.appendChild(comment);
+                });
+            }
+
+            function addAnnotation() {
+                const text = document.getElementById('annotation-text').value.trim();
+
+                if (!text || !selectedPR) {
+                    showToast('Please enter annotation text', 'warning');
+                    return;
+                }
+
+                // For now, we'll add it to a random line between 1 and 10
+                const randomLine = Math.floor(Math.random() * 10) + 1;
+
+                selectedPR.annotations.push({
+                    text,
+                    line: randomLine
+                });
+
+                renderAnnotations();
+                document.getElementById('annotation-text').value = '';
+
+                // Highlight the line
+                highlightCodeLine(randomLine);
+
+                showToast('Annotation added', 'success');
+            }
+
+            function addComment() {
+                const text = document.getElementById('comment-text').value.trim();
+
+                if (!text || !selectedPR) {
+                    showToast('Please enter a comment', 'warning');
+                    return;
+                }
+
+                const newComment = {
+                    id: Date.now(),
+                    text,
+                    author: 'John Doe',
+                    timestamp: new Date().toISOString(),
+                    avatar: 'JD'
+                };
+
+                selectedPR.comments.push(newComment);
+                renderComments();
+
+                document.getElementById('comment-text').value = '';
+
+                // Apply animation to highlight the new comment
+                setTimeout(() => {
+                    const commentElements = document.querySelectorAll('#comment-thread > div');
+                    if (commentElements.length > 0) {
+                        const lastComment = commentElements[commentElements.length - 1];
+                        lastComment.classList.add('highlight-new');
+                        lastComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }, 100);
+
+                showToast('Comment added', 'success');
+            }
+
+            function approvePR() {
+                if (selectedPR && selectedPR.status === 'Open') {
+                    selectedPR.status = 'Approved';
+
+                    // Add system comment
+                    selectedPR.comments.push({
+                        id: Date.now(),
+                        text: 'This pull request has been approved.',
+                        author: 'System',
+                        timestamp: new Date().toISOString(),
+                        avatar: '✓'
+                    });
+
+                    // Refresh UI
+                    selectPR(selectedPR.id);
+                    renderPRList();
+                    updateChart();
+
+                    // Show success notification
+                    showToast('Pull request approved!', 'success');
+                }
+            }
+
+            function disapprovePR() {
+                if (selectedPR && selectedPR.status === 'Open') {
+                    selectedPR.status = 'Disapproved';
+
+                    // Add system comment
+                    selectedPR.comments.push({
+                        id: Date.now(),
+                        text: 'This pull request has been rejected.',
+                        author: 'System',
+                        timestamp: new Date().toISOString(),
+                        avatar: '✗'
+                    });
+
+                    // Refresh UI
+                    selectPR(selectedPR.id);
+                    renderPRList();
+                    updateChart();
+
+                    // Show notification
+                    showToast('Pull request rejected', 'error');
+                }
+            }
+
+            function mockSync() {
+                const btn = document.getElementById('sync-btn');
+                const originalContent = btn.innerHTML;
+
+                // Disable button and show loading state
+                btn.disabled = true;
+                btn.innerHTML = `
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Syncing...
+                `;
+
+                // Simulate API call delay
+                setTimeout(() => {
+                    // Re-enable button and restore content
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+
+                    // Show success notification
+                    showToast('Successfully synced with version control', 'success');
+                }, 1500);
+            }
+
+            function updateChart() {
+                const view = document.getElementById('chart-view').value;
+                let data;
+
+                if (view === 'reviewer') {
+                    const reviewers = {};
+                    pullRequests.forEach(pr => {
+                        reviewers[pr.reviewer] = (reviewers[pr.reviewer] || 0) + 1;
+                    });
+
+                    data = [{
+                        x: Object.keys(reviewers),
+                        y: Object.values(reviewers),
+                        type: 'bar',
+                        marker: {
+                            color: isDarkTheme ? '#10b981' : '#059669',
+                            line: {
+                                color: isDarkTheme ? '#34d399' : '#10b981',
+                                width: 1.5
+                            }
+                        },
+                        hoverinfo: 'y+x',
+                        hovertemplate: '<b>%{x}</b><br>PRs: %{y}<extra></extra>'
+                    }];
+                } else {
+                    const statuses = {};
+                    pullRequests.forEach(pr => {
+                        statuses[pr.status] = (statuses[pr.status] || 0) + 1;
+                    });
+
+                    // Custom colors for status
+                    const statusColors = {
+                        'Open': isDarkTheme ? '#60a5fa' : '#3b82f6',
+                        'Approved': isDarkTheme ? '#10b981' : '#059669',
+                        'Disapproved': isDarkTheme ? '#f87171' : '#dc2626'
+                    };
+
+                    const colors = Object.keys(statuses).map(status => statusColors[status] || '#6b7280');
+
+                    data = [{
+                        x: Object.keys(statuses),
+                        y: Object.values(statuses),
+                        type: 'bar',
+                        marker: {
+                            color: colors,
+                            line: {
+                                color: isDarkTheme ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)',
+                                width: 1.5
+                            }
+                        },
+                        hoverinfo: 'y+x',
+                        hovertemplate: '<b>%{x}</b><br>PRs: %{y}<extra></extra>'
+                    }];
+                }
+
+                const layout = {
+                    title: {
+                        text: `Review Activity by ${view.charAt(0).toUpperCase() + view.slice(1)}`,
+                        font: {
+                            color: isDarkTheme ? '#f9fafb' : '#111827',
+                            size: window.innerWidth < 768 ? 14 : 16
+                        }
+                    },
+                    paper_bgcolor: isDarkTheme ? '#1f2937' : '#ffffff',
+                    plot_bgcolor: isDarkTheme ? '#1f2937' : '#ffffff',
+                    font: {
+                        color: isDarkTheme ? '#f9fafb' : '#111827',
+                        family: 'Inter, sans-serif',
+                        size: window.innerWidth < 768 ? 10 : 12
+                    },
+                    xaxis: {
+                        gridcolor: isDarkTheme ? '#374151' : '#e5e7eb',
+                        tickangle: window.innerWidth < 768 ? 45 : 0,
+                        automargin: true
+                    },
+                    yaxis: {
+                        gridcolor: isDarkTheme ? '#374151' : '#e5e7eb',
+                        automargin: true
+                    },
+                    margin: {
+                        t: window.innerWidth < 768 ? 40 : 50,
+                        b: window.innerWidth < 768 ? 60 : 50,
+                        l: window.innerWidth < 768 ? 40 : 50,
+                        r: window.innerWidth < 768 ? 20 : 50
+                    },
+                    bargap: window.innerWidth < 768 ? 0.3 : 0.2,
+                    autosize: true
+                };
+
+                const config = {
+                    responsive: true,
+                    displayModeBar: false
+                };
+
+                Plotly.newPlot('review-chart', data, layout, config);
+            }
+
+            function showAddPRModal() {
+                document.getElementById('add-pr-modal').classList.remove('hidden');
+                document.getElementById('pr-title-input').focus();
+            }
+
+            function hideAddPRModal() {
+                document.getElementById('add-pr-modal').classList.add('hidden');
+                document.getElementById('add-pr-form').reset();
+            }
+
+            function toggleTheme() {
+                isDarkTheme = !isDarkTheme;
+
+                // Toggle Tailwind dark class
+                document.body.classList.toggle('dark', isDarkTheme);
+                document.body.classList.toggle('bg-dark-900', isDarkTheme);
+                document.body.classList.toggle('text-dark-100', isDarkTheme);
+                document.body.classList.toggle('bg-gray-100', !isDarkTheme);
+                document.body.classList.toggle('text-dark-900', !isDarkTheme);
+
+                // Update theme icon
+                const themeIcon = document.getElementById('theme-icon');
+                const themePath = document.getElementById('theme-path');
+
+                if (isDarkTheme) {
+                    themePath.setAttribute('d', 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z');
+                } else {
+                    themePath.setAttribute('d', 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z');
+                }
+
+                // Update chart
+                if (selectedPR) {
+                    updateChart();
+                }
+
+                // Store preference
+                localStorage.setItem('theme', isDarkTheme ? 'dark' : 'light');
+
+                // Highlight code again to update styles
+                Prism.highlightAll();
+            }
+
+            function addPullRequest(e) {
+                e.preventDefault();
+
+                const title = document.getElementById('pr-title-input').value.trim();
+                const code = document.getElementById('pr-code-input').value.trim();
+                const reviewer = document.getElementById('pr-reviewer-input').value.trim();
+
+                if (title && code && reviewer) {
+                    const newId = Math.max(...pullRequests.map(pr => pr.id), 0) + 1;
+
+                    const newPR = {
+                        id: newId,
+                        title,
+                        code,
+                        status: 'Open',
+                        reviewer,
+                        annotations: [],
+                        comments: []
+                    };
+
+                    pullRequests.push(newPR);
+                    renderPRList();
+                    hideAddPRModal();
+                    selectPR(newId);
+
+                    showToast('New pull request created', 'success');
+                }
+            }
+
+            // Register event listeners
+            document.addEventListener('keydown', function (e) {
+                // Ctrl+Enter to submit comment
+                if (e.ctrlKey && e.key === 'Enter') {
+                    const commentText = document.getElementById('comment-text');
+                    if (document.activeElement === commentText) {
+                        addComment();
+                    }
+                }
+
+                // Alt+A to add annotation
+                if (e.altKey && e.key === 'a') {
+                    addAnnotation();
+                }
+
+                // Alt+S to sync
+                if (e.altKey && e.key === 's') {
+                    mockSync();
+                }
+            });
+
+            document.getElementById('add-annotation').addEventListener('click', () => addAnnotation());
+            document.getElementById('add-comment').addEventListener('click', () => addComment());
+            document.getElementById('approve-btn').addEventListener('click', () => approvePR());
+            document.getElementById('disapprove-btn').addEventListener('click', () => disapprovePR());
+            document.getElementById('sync-btn').addEventListener('click', () => mockSync());
+            document.getElementById('chart-view').addEventListener('change', () => updateChart());
+            document.getElementById('theme-toggle').addEventListener('click', () => toggleTheme());
+            document.getElementById('pr-search').addEventListener('input', (e) => renderPRList(e.target.value));
+            document.getElementById('help-btn').addEventListener('click', () => document.getElementById('instructions-modal').classList.remove('hidden'));
+            document.getElementById('close-instructions').addEventListener('click', () => document.getElementById('instructions-modal').classList.add('hidden'));
+            document.getElementById('close-help-btn').addEventListener('click', () => document.getElementById('instructions-modal').classList.add('hidden'));
+            document.getElementById('add-btn').addEventListener('click', () => showAddPRModal());
+            document.getElementById('close-pr-modal').addEventListener('click', () => hideAddPRModal());
+            document.getElementById('add-pr-form').addEventListener('submit', (e) => addPullRequest(e));
+
+            // Close modals when clicking outside
+            document.getElementById('instructions-modal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    document.getElementById('instructions-modal').classList.add('hidden');
+                }
+            });
+
+            document.getElementById('add-pr-modal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) {
+                    hideAddPRModal();
+                }
+            });
+
+            // Handle window resize to update chart
+            window.addEventListener('resize', debounce(() => {
+                if (selectedPR) {
+                    updateChart();
+                }
+            }, 250));
+
+            // Initialize application
+            function initializeApp() {
+                // Check for saved theme preference
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'light') {
+                    toggleTheme();
+                }
+
+                // Render the PR list
+                renderPRList();
+
+                // Initialize the chart with no selection
+                updateChart();
+
+
+
+                // Show welcome toast
+                setTimeout(() => {
+                    showToast('Welcome to CodeReviewHub!', 'info');
+                }, 500);
+            }
+
+            initializeApp();
+        }); 
+    </script>
+</body>
+
+</html>
